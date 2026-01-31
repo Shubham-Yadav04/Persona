@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { AnimatedBackground } from "@/components/AnimatedBackground";
 import { ChatInterface } from "@/components/ChatInterface";
 import { IntroOverlay } from "@/components/IntroOverlay";

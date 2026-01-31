@@ -4,6 +4,8 @@ import { motion, AnimatePresence } from "framer-motion";
 import { Send, Sparkles, User, Bot } from "lucide-react";
 import { useState, useRef, useEffect } from "react";
 import { cn } from "@/lib/utils";
+import Error from "next/error";
+import axios from "axios";
 
 type Message = {
   id: string;
@@ -19,9 +21,10 @@ export const ChatInterface = () => {
       content: "Hi there, I am Shubham Yadav 's  virtual Persona. How may I assist you today?",
     },
   ]);
+  const [sessionId,setSessionId]= useState<string>(crypto.randomUUID());
   const [input, setInput] = useState("");
   const messagesEndRef = useRef<HTMLDivElement>(null);
-
+const [response,setResponse]=  useState(false);
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   };
@@ -30,7 +33,8 @@ export const ChatInterface = () => {
     scrollToBottom();
   }, [messages]);
 
-  const handleSend = () => {
+  const handleSend =async () => {
+    console.log(input);
     if (!input.trim()) return;
 
     const newMessage: Message = {
@@ -38,24 +42,34 @@ export const ChatInterface = () => {
       role: "user",
       content: input,
     };
-
     setMessages((prev) => [...prev, newMessage]);
-    setInput("");
-
+    setResponse(true);
+    const userQuery=input;
+setInput("")
     // Simulate bot response
-    setTimeout(() => {
-      const botResponse: Message = {
+    try{
+        console.log('sending request to ' ,process.env.NEXT_PUBLIC_BACKEND_URI)
+const res= await axios.post(`${process.env.NEXT_PUBLIC_BACKEND_URI}?q=${userQuery}`,{
+  sessionId
+});
+console.log(res);
+setResponse(false);
+const botResponse: Message = {
         id: (Date.now() + 1).toString(),
         role: "bot",
-        content: "I am processing your request. My neural networks are analyzing the nuances of your query to provide the most precise information.",
+        content: res.data,
       };
       setMessages((prev) => [...prev, botResponse]);
-    }, 1500);
+    }
+    catch(error:unknown){
+      console.log(error);
+      if(error instanceof Error )console.log(error?.message)
+    }
   };
 
   return (
     <div className="flex flex-col h-full max-w-4xl mx-auto p-4 md:p-6 relative z-10">
-      <div className="flex-1 overflow-y-auto space-y-6 pb-32 scrollbar-none min-h-[200vh]">
+      <div className=" relative flex-1 overflow-y-auto space-y-6  pb-20 scrollbar-none min-h[100vh]">
         <AnimatePresence initial={false}>
           {messages.map((message) => (
             <motion.div
@@ -89,11 +103,37 @@ export const ChatInterface = () => {
                 )}
               >
                 {message.content}
+              
               </div>
             </motion.div>
           ))}
+          {
+              
+                  response &&   <div
+               
+                className={cn(
+                  "relative max-w-[80%] md:max-w-[70%] p-4 rounded-2xl text-sm md:text-base leading-relaxed backdrop-blur-md border",
+                    "bg-white/5 border-white/10 rounded-tl-none text-gray-200 flex flex-row gap items-end gap-2"
+                    
+                )}
+              >Searching <motion.h1
+                  animate={{
+    opacity: [0.2, 1, 0.2],
+    scaleY: [0.2, 1, 0.2],
+  }}
+  transition={{
+    duration: 1,
+    ease: "easeInOut",
+    repeat: Infinity,
+    repeatType: "loop"
+  }}
+  className="w-fit text-md text-start text-neutral-400"
+                >...</motion.h1>
+              </div>
+                
+          }
         </AnimatePresence>
-        <div ref={messagesEndRef} />
+        <div ref={messagesEndRef}  className="absolute bottom-5 left-0 pb-10 "/>
       </div>
 
       <div className="fixed bottom-0 left-0 right-0 p-4 bg-gradient-to-t from-black via-black/80 to-transparent pt-20">

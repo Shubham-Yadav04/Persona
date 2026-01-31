@@ -13,22 +13,22 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-file_path = "./Shubham_Yadav.pdf"
-loader = PyPDFLoader(file_path)
+# file_path = "./Shubham_Yadav.pdf"
+# loader = PyPDFLoader(file_path)
 
 embeddings = GoogleGenerativeAIEmbeddings(model="models/gemini-embedding-001")
-docs = loader.load()
+# docs = loader.load()
 
-text_splitter = RecursiveCharacterTextSplitter(
-    chunk_size=300, chunk_overlap=100 ,separators = [
-    "\n\n",   # Paragraphs
-    "\n",     # Lines
-    ". ",     # Sentences
-    " ",      # Words
-    ""        # Characters (fallback)
-]
-)
-texts = text_splitter.split_documents(docs)
+# text_splitter = RecursiveCharacterTextSplitter(
+#     chunk_size=300, chunk_overlap=100 ,separators = [
+#     "\n\n",   # Paragraphs
+#     "\n",     # Lines
+#     ". ",     # Sentences
+#     " ",      # Words
+#     ""        # Characters (fallback)
+# ]
+# )
+# texts = text_splitter.split_documents(docs)
 api_key=os.getenv("CHROMA_CLOUD_API")
 tenant=os.getenv("CHROMA_TENANT")
 database=os.getenv("CHROMA_DATABASE")
@@ -42,7 +42,7 @@ vector_store = Chroma(
     embedding_function=embeddings,
     # persist_directory="./chroma_langchain_db",  # Where to save data locally, remove if not necessary
 )
-vector_store.add_documents(documents=texts)
+# vector_store.add_documents(documents=texts)
 persona_agent = Agent(
     model='gemini-2.5-flash',
     name='persona_agent',
@@ -78,8 +78,6 @@ persona_agent = Agent(
 )
 
 app_name = "demo"
-user_id = "123"
-session_id = "session123"
 
 session_service = InMemorySessionService()
 retriever = vector_store.as_retriever(search_kwargs={"k": 4}) # creating a retriever to retreive the data from the vector store
@@ -89,8 +87,21 @@ runner = Runner(
     session_service=session_service
 )
 
-async def call_runner(query: str):
-
+async def call_runner(query: str,sessionId:str):
+    print("someone called call runner ",query)
+    user_id = "123"
+    session= await session_service.get_session(
+        app_name=app_name,
+        user_id=user_id,
+        session_id=sessionId
+    )
+    if session is None:
+        await session_service.create_session(
+        app_name=app_name,
+        user_id=user_id,
+        session_id=sessionId
+    )
+         
     context =retriever.invoke(query)
     full_prompt = f"""
      Use the following context to answer:
@@ -103,7 +114,7 @@ async def call_runner(query: str):
     final_response = "No response received."
 
     async for event in runner.run_async(user_id=user_id,
-    session_id=session_id,
+    session_id=sessionId,
     new_message=content):
         if event.is_final_response():
             if event.content and event.content.parts:
@@ -112,18 +123,19 @@ async def call_runner(query: str):
                 final_response = event.error_message
             break
 
-    print(f"\n<<< Agent Response: {final_response}")
+    print(f"\nAgent: {final_response}")
+    return final_response
 
-async def run_conversation():
-    await session_service.create_session(
-        app_name=app_name,
-        user_id=user_id,
-        session_id=session_id
-    )
-    while True:
-        query=input("user: ")
-        await call_runner(query)
+# async def run_conversation():
+#     await session_service.create_session(
+#         app_name=app_name,
+#         user_id=user_id,
+#         session_id=session_id
+#     )
+#     while True:
+#         query=input("user: ")
+#         await call_runner(query)
 
 # Proper entry point
-if __name__ == "__main__":
-    asyncio.run(run_conversation())
+# if __name__ == "__main__":
+#     asyncio.run(run_conversation())
