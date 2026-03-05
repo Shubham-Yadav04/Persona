@@ -61,7 +61,7 @@ const botResponse: Message = {
     }
     catch(error:unknown){
       console.log(error);
-      if(error instanceof Error )console.log(error?.message)
+      if(error instanceof Error )console.log(error)
     }
   };
 
