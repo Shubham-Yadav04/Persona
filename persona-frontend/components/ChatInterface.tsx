@@ -61,6 +61,13 @@ const botResponse: Message = {
     }
     catch(error:unknown){
       console.log(error);
+      setResponse(false);
+      const botResponse: Message = {
+        id: (Date.now() + 1).toString(),
+        role: "bot",
+        content: "Sorry, something went wrong while processing your request. Please try again later.",
+      };
+      setMessages((prev) => [...prev, botResponse]);
       if(error instanceof Error )console.log(error)
     }
   };
