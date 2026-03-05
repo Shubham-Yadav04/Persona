@@ -2,12 +2,15 @@ from flask import Flask ,request
 from persona_agent.agent import call_runner
 from flask_cors import CORS
 app = Flask(__name__)
-
+from dotenv import load_dotenv
+import os
+load_dotenv()
+frontend_url = os.getenv("FRONTEND_URL")  # Next.js dev URL
 CORS(app, resources={
     r"/*": {
         "origins": [
             
-            "http://localhost:3000",   # Next.js dev
+            frontend_url,   # Next.js dev
             
         ]
     }

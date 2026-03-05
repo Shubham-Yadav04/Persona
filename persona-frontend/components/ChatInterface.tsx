@@ -1,5 +1,4 @@
 "use client";
-
 import { motion, AnimatePresence } from "framer-motion";
 import { Send, Sparkles, User, Bot } from "lucide-react";
 import { useState, useRef, useEffect } from "react";
@@ -12,13 +11,12 @@ type Message = {
   role: "user" | "bot";
   content: string;
 };
-
 export const ChatInterface = () => {
   const [messages, setMessages] = useState<Message[]>([
     {
       id: "1",
       role: "bot",
-      content: "Hi there, I am Shubham Yadav 's  virtual Persona. How may I assist you today?",
+      content: "Hi there, I am Shubham Yadav 's virtual Persona. How may I assist you today?",
     },
   ]);
   const [sessionId,setSessionId]= useState<string>(crypto.randomUUID());
