@@ -26,13 +26,13 @@ const [response,setResponse]=  useState(false);
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   };
-
+const controller = new AbortController();
   useEffect(() => {
     scrollToBottom();
   }, [messages]);
 
   const handleSend =async () => {
-    console.log(input);
+    if (response) return;
     if (!input.trim()) return;
 
     const newMessage: Message = {
@@ -45,34 +45,75 @@ const [response,setResponse]=  useState(false);
     const userQuery=input;
 setInput("")
     // Simulate bot response
-    try{
-        console.log('sending request to ' ,process.env.NEXT_PUBLIC_BACKEND_URI)
-const res= await axios.post(`${process.env.NEXT_PUBLIC_BACKEND_URI}?q=${userQuery}`,{
-  sessionId
-});
-console.log(res);
-setResponse(false);
-const botResponse: Message = {
-        id: (Date.now() + 1).toString(),
-        role: "bot",
-        content: res.data,
-      };
-      setMessages((prev) => [...prev, botResponse]);
-    }
-    catch(error:unknown){
-      console.log(error);
-      setResponse(false);
-      const botResponse: Message = {
-        id: (Date.now() + 1).toString(),
-        role: "bot",
-        content: "Sorry, something went wrong while processing your request. Please try again later.",
-      };
-      setMessages((prev) => [...prev, botResponse]);
-      if(error instanceof Error )console.log(error)
-    }
-  };
+    let botMessageId: string | null = null;
+try {
+  const res = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URI}`, {
+    method: "POST",
+    body: JSON.stringify({ sessionId, query: userQuery }),
+    headers: {
+      "Content-Type": "application/json",
+    },
+    signal: controller.signal
+  });
 
-  return (
+  if (!res.ok) throw new Error("Request failed");
+
+  if (!res.body) throw new Error("No response body");
+
+  const reader = res.body.getReader();
+  const decoder = new TextDecoder();
+
+  let fullResponse = "";
+  let buffer="";
+  // Add empty bot message first
+   botMessageId = Date.now().toString();
+  setMessages((prev) => [
+    ...prev,
+    { id: botMessageId, role: "bot", content: "Searching ..." }
+  ]);
+
+  while (true) {
+  const { value, done } = await reader.read();
+  if (done) break;
+
+  buffer += decoder.decode(value, { stream: true });
+
+  // Split complete SSE messages
+  const parts = buffer.split("\n\n");
+  buffer = parts.pop(); // keep incomplete part
+
+  for (const part of parts) {
+    if (part.startsWith("data:")) {
+      const data = part.replace("data:", "").trim();
+
+      fullResponse += data;
+
+      setMessages((prev) =>
+        prev.map((msg) =>
+          msg.id === botMessageId
+            ? { ...msg, content: fullResponse }
+            : msg
+        )
+      );
+    }
+  }
+}
+
+  setResponse(false);
+
+}
+ catch (error) {
+  console.log(error);
+  setResponse(false);
+  setMessages(prev=>
+    prev.map(msg=> msg.id===botMessageId?
+      {...msg, content:"Sorry, something went wrong. Please try again."}
+      :msg
+    ) 
+  )
+  };
+}
+return (
     <div className="flex flex-col h-full max-w-4xl mx-auto p-4 md:p-6 relative z-10">
       <div className=" relative flex-1 overflow-y-auto space-y-6  pb-20 scrollbar-none min-h[100vh]">
         <AnimatePresence initial={false}>
@@ -101,10 +142,10 @@ const botResponse: Message = {
               </div>
               <div
                 className={cn(
-                  "relative max-w-[80%] md:max-w-[70%] p-4 rounded-2xl text-sm md:text-base leading-relaxed backdrop-blur-md border",
+                  "relative max-w-[80%] md:max-w-[70%] p-4 rounded-2xl text-sm md:text-base leading-relaxed backdrop-blur-md ",
                   message.role === "bot"
-                    ? "bg-white/5 border-white/10 rounded-tl-none text-gray-200"
-                    : "bg-white/10 border-white/20 rounded-tr-none text-white shadow-[0_0_15px_rgba(255,255,255,0.1)]"
+                    ? "text-gray-200"
+                    : "bg-white/10 border border-white/20 rounded-tr-none text-white shadow-[0_0_15px_rgba(255,255,255,0.1)]"
                 )}
               >
                 {message.content}
@@ -112,31 +153,7 @@ const botResponse: Message = {
               </div>
             </motion.div>
           ))}
-          {
-              
-                  response &&   <div
-               
-                className={cn(
-                  "relative max-w-[80%] md:max-w-[70%] p-4 rounded-2xl text-sm md:text-base leading-relaxed backdrop-blur-md border",
-                    "bg-white/5 border-white/10 rounded-tl-none text-gray-200 flex flex-row gap items-end gap-2"
-                    
-                )}
-              >Searching <motion.h1
-                  animate={{
-    opacity: [0.2, 1, 0.2],
-    scaleY: [0.2, 1, 0.2],
-  }}
-  transition={{
-    duration: 1,
-    ease: "easeInOut",
-    repeat: Infinity,
-    repeatType: "loop"
-  }}
-  className="w-fit text-md text-start text-neutral-400"
-                >...</motion.h1>
-              </div>
-                
-          }
+         
         </AnimatePresence>
         <div ref={messagesEndRef}  className="absolute bottom-5 left-0 pb-10 "/>
       </div>
@@ -163,3 +180,4 @@ const botResponse: Message = {
     </div>
   );
 };
+
