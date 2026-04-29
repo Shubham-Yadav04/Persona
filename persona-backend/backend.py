@@ -34,9 +34,10 @@ async def handle_query(request:Request):
     # call the runner function from the above module
     async def event_stream():
         try:
-           async for chunk in response_generator(sessionId, query):
+           async for chunk in response_generator( query):
                 yield f"data: {chunk}\n\n"
-        except Exception as e:  
+        except Exception as e:
+            print(e)  
             yield f"\n[ERROR]: {str(e)}\n"
 
     return StreamingResponse(event_stream(), media_type="text/event-stream")

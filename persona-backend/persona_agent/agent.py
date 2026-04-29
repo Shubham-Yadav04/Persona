@@ -1,9 +1,7 @@
 
 import os
-from google.adk.agents.llm_agent import Agent
-from google.adk.runners import Runner
-from google.adk.sessions import InMemorySessionService
 from google.genai import types
+
 from langchain_google_genai import GoogleGenerativeAIEmbeddings
 from langchain_chroma import Chroma
 from langchain_community.document_loaders import PyPDFLoader
@@ -11,6 +9,7 @@ from langchain_text_splitters import RecursiveCharacterTextSplitter
 from langchain_google_genai import GoogleGenerativeAIEmbeddings
 from dotenv import load_dotenv
 from matplotlib.style import context
+from langchain.agents import create_agent
 
 load_dotenv()
 
@@ -23,7 +22,7 @@ api_key=os.getenv("CHROMA_CLOUD_API")
 tenant=os.getenv("CHROMA_TENANT")
 database=os.getenv("CHROMA_DATABASE")
 collection_name=os.getenv("CHROMA_COLLECTION","Persona")
-print(api_key, tenant, database, collection_name , " let see the logs")
+# print(api_key, tenant, database, collection_name , " let see the logs")
 vector_store = Chroma(
      chroma_cloud_api_key=api_key,
   tenant=tenant,
@@ -33,11 +32,11 @@ vector_store = Chroma(
     # persist_directory="./chroma_langchain_db",  # Where to save data locally, remove if not necessary
 )
 # vector_store.add_documents(documents=texts)
-persona_agent = Agent(
-    model='gemini-2.5-flash',
+persona_agent = create_agent(
+    model='google_genai:gemini-2.5-flash-lite',
     name='persona_agent',
-    description='A virtual persona assistant that represents a specific user and answers questions about them based only on approved contextual knowledge.',
-    instruction="You are a digital persona representing a specific individual." \
+    # description='A virtual persona assistant that represents a specific user and answers questions about them based only on approved contextual knowledge.',
+    system_prompt="You are a digital persona representing a specific individual." \
     " Knowledge Rules" \
     "You may answer ONLY using the provided context, retrieved knowledge, session history, or tool outputs." \
     "If information is not found in context → respond:"
@@ -68,55 +67,38 @@ persona_agent = Agent(
 )
 
 app_name = "demo"
+retriever = vector_store.as_retriever(search_kwargs={"k": 2})
 
-session_service = InMemorySessionService()
-retriever = vector_store.as_retriever(search_kwargs={"k": 2}) # creating a retriever to retreive the data from the vector store
-runner = Runner(
-    agent=persona_agent,
-    app_name=app_name,
-    session_service=session_service
-)
-async def response_generator(session_id: str, query: str):
-    print("someone called call runner", query)
+async def response_generator(query):
+    print("called the generator ")
+    # Retrieve context (once)
+    context_docs = retriever.invoke(query)
 
-    user_id = "123"
-
-    session = await session_service.get_session(
-        app_name=app_name,
-        user_id=user_id,
-        session_id=session_id
-    )
-
-    if session is None:
-        await session_service.create_session(
-            app_name=app_name,
-            user_id=user_id,
-            session_id=session_id
-        )
-
-    context = retriever.invoke(query)
-  
     full_prompt = f"""
     Use the following context to answer:
-    {context}
+    {context_docs}
     User question: {query}
     """
 
-    content = types.Content(
-        role='user',
-        parts=[types.Part(text=full_prompt)]
-    )
+    # Step 2: Build content BEFORE streaming
+    content = {
+        "role":"user",
+        "content":full_prompt
+    }
 
-    async for event in runner.run_async(
-        user_id=user_id,
-        session_id=session_id,
-        new_message=content
+    # Step 3: Start streaming
+    for chunk in persona_agent.stream(
+        {"messages": [content]},
+        stream_mode="updates",
+        version="v2",
     ):
-        if event.content and event.content.parts:
-            yield event.content.parts[0].text
+        print(chunk)
+        if "model" in chunk and "messages" in chunk["model"]:
+            messages = chunk["model"]["messages"]
 
-        if event.actions and event.actions.escalate:
-            yield f"[ERROR]: {event.error_message}"
+            if messages:
+                last_msg = messages[-1]
+                print("last message", last_msg)
 
-        if event.is_final_response():
-            break
+                if hasattr(last_msg, "content"):
+                    yield last_msg.content
