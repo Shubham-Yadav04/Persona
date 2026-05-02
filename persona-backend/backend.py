@@ -35,11 +35,11 @@ async def handle_query(request:Request):
     async def event_stream():
         try:
            async for chunk in response_generator( query):
-                print(f"data: {chunk}")
-                yield f"data: {chunk}\n"
+                print(f"data: {chunk}\n\n")
+                yield f"data: {chunk}\n\n"
                 await asyncio.sleep(0)
         except Exception as e:
-            yield f"data: [ERROR]: {str(e)}\n"
+            yield f"data: [ERROR]: {str(e)}\n\n"
 
     return StreamingResponse(event_stream(), media_type="text/event-stream",headers={
             "Cache-Control": "no-cache",
