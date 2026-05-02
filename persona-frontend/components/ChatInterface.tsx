@@ -4,6 +4,7 @@ import { Send, Sparkles, User, Bot } from "lucide-react";
 import { useState, useRef, useEffect } from "react";
 import { cn } from "@/lib/utils";
 import Error from "next/error";
+import ReactMarkdown from "react-markdown";
 
 
 type Message = {
@@ -12,6 +13,10 @@ type Message = {
   content: string;
   loading?: boolean;
 };
+type ErrorProps={
+  statusCode: number;
+  message: string;
+}
 export const ChatInterface = () => {
   const [messages, setMessages] = useState<Message[]>([]);
   const [sessionId,setSessionId]= useState<string>(crypto.randomUUID());
@@ -55,9 +60,9 @@ try {
     cache:"no-cache"
   });
 
-  if (!res.ok) throw new Error("Request failed");
+  if (!res.ok) throw new Error({ statusCode: res.status, message: "Request failed" });
 
-  if (!res.body) throw new Error("No response body"); 
+  if (!res.body) throw new Error({ statusCode: 500, message: "No response body" }); 
   const reader = res.body.getReader();
   const decoder = new TextDecoder();
 
@@ -66,9 +71,9 @@ try {
   // Add empty bot message first
    botMessageId = Date.now().toString();
   setMessages(prev => [
-  ...(prev || []),
+  ...prev,
   {
-    id: botMessageId,
+    id: botMessageId || "123",
     role: "assistant",
     content: "",
     loading: true
@@ -81,17 +86,25 @@ try {
     break;
   } 
 
-  buffer += decoder.decode(value, { stream: true });
+  buffer += decoder.decode(value, { stream: true }) ;
 
   // Split complete SSE messages
-  const parts = buffer.split("\n");
-  buffer = parts.pop();
+ const messages = buffer.split("\n\n");
+buffer = messages.pop() || "";
 
-  for (const part of parts) {
-    if (part.startsWith("data:")) {
-  const data = part.replace("data:", "").trim();
+for (const msg of messages) {
+  const lines = msg.split("\n");
 
-  fullResponse += data;
+  let combined = "";
+
+  for (let line of lines) {
+    line=line.replace(/^data:\s*/, ""); // Remove "data: " prefix if present
+      combined += line;
+    
+  }
+
+  
+  fullResponse += combined +"\n";
 
   setMessages((prev: Message[]) =>
     prev?.map(msg =>
@@ -104,7 +117,6 @@ try {
         : msg
     )
   );
-}
   }
 }
 
@@ -176,7 +188,7 @@ return (
     Searching<span className="animate-bounce">...</span>
   </span>
 ) : (
-  message.content
+  <ReactMarkdown>{message.content}</ReactMarkdown>
 )}
               
               </div>
