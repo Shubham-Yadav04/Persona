@@ -1,4 +1,5 @@
 
+import asyncio
 import os
 from google.genai import types
 
@@ -89,16 +90,13 @@ async def response_generator(query):
     # Step 3: Start streaming
     for chunk in persona_agent.stream(
         {"messages": [content]},
-        stream_mode="updates",
+        stream_mode="messages",
         version="v2",
     ):
-        print(chunk)
-        if "model" in chunk and "messages" in chunk["model"]:
-            messages = chunk["model"]["messages"]
+      
+        message_chunk = chunk[0]
 
-            if messages:
-                last_msg = messages[-1]
-                print("last message", last_msg)
+        if hasattr(message_chunk, "content") and message_chunk.content:
 
-                if hasattr(last_msg, "content"):
-                    yield last_msg.content
+            yield message_chunk.content   # ✅ token streaming
+            await asyncio.sleep(0)

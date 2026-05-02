@@ -1,3 +1,5 @@
+import asyncio
+
 from fastapi import FastAPI, Request
 from fastapi.responses import HTMLResponse, StreamingResponse
 from fastapi.middleware.cors import CORSMiddleware
@@ -27,18 +29,21 @@ async def hello_world():
 @app.post('/')
 async def handle_query(request:Request):
     data = await request.json()
-    sessionId= data.get('sessionId')
+   
     query= data.get('query')
-
-    print(sessionId)
     # call the runner function from the above module
     async def event_stream():
         try:
            async for chunk in response_generator( query):
-                yield f"data: {chunk}\n\n"
+                print(f"data: {chunk}")
+                yield f"data: {chunk}\n"
+                await asyncio.sleep(0)
         except Exception as e:
-            print(e)  
-            yield f"\n[ERROR]: {str(e)}\n"
+            yield f"data: [ERROR]: {str(e)}\n"
 
-    return StreamingResponse(event_stream(), media_type="text/event-stream")
+    return StreamingResponse(event_stream(), media_type="text/event-stream",headers={
+            "Cache-Control": "no-cache",
+            "Connection": "keep-alive",
+            "X-Accel-Buffering": "no",
+        },)
 
