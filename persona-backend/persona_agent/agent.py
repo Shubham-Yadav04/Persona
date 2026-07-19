@@ -14,9 +14,18 @@ from langchain.agents import create_agent
 
 load_dotenv()
 
-# file_path = "./Shubham_Yadav.pdf"
-# loader = PyPDFLoader(file_path)
+file_path = "./persona_agent/Shubhamydv.pdf"
+loader = PyPDFLoader(file_path)
+documents = loader.load()
 
+# Split into chunks
+text_splitter = RecursiveCharacterTextSplitter(
+    chunk_size=1000,
+    chunk_overlap=200,
+    separators=["\n\n", "\n", " ", ""],
+)
+
+texts = text_splitter.split_documents(documents)
 embeddings = GoogleGenerativeAIEmbeddings(model="models/gemini-embedding-001")
 
 api_key=os.getenv("CHROMA_CLOUD_API")
@@ -24,15 +33,16 @@ tenant=os.getenv("CHROMA_TENANT")
 database=os.getenv("CHROMA_DATABASE")
 collection_name=os.getenv("CHROMA_COLLECTION","Persona")
 # print(api_key, tenant, database, collection_name , " let see the logs")
+
 vector_store = Chroma(
-     chroma_cloud_api_key=api_key,
-  tenant=tenant,
-  database=database,
+    chroma_cloud_api_key=api_key,
+tenant=tenant,
+database=database,
     collection_name=collection_name,
-    embedding_function=embeddings,
-    # persist_directory="./chroma_langchain_db",  # Where to save data locally, remove if not necessary
+    embedding_function=embeddings
 )
-# vector_store.add_documents(documents=texts)
+
+vector_store.add_documents(documents=texts)
 persona_agent = create_agent(
     model='google_genai:gemini-2.5-flash-lite',
     name='persona_agent',
@@ -100,3 +110,4 @@ async def response_generator(query):
 
             yield message_chunk.content   # ✅ token streaming
             await asyncio.sleep(0)
+
