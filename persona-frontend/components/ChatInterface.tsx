@@ -94,11 +94,11 @@ buffer = messages.pop() || "";
 
 for (const msg of messages) {
   const lines = msg.split("\n");
-
   let combined = "";
 
   for (let line of lines) {
     line=line.replace(/^data:\s*/, ""); // Remove "data: " prefix if present
+   
       combined += line;
     
   }
