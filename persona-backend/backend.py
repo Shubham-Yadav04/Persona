@@ -39,6 +39,7 @@ async def handle_query(request:Request):
                 yield f"data: {chunk}\n\n"
                 await asyncio.sleep(0)
         except Exception as e:
+            print(e)
             yield f"data: [ERROR]: {str(e)}\n\n"
 
     return StreamingResponse(event_stream(), media_type="text/event-stream",headers={

@@ -9,7 +9,6 @@ from langchain_community.document_loaders import PyPDFLoader
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 from langchain_google_genai import GoogleGenerativeAIEmbeddings
 from dotenv import load_dotenv
-from matplotlib.style import context
 from langchain.agents import create_agent
 
 load_dotenv()
@@ -99,15 +98,13 @@ async def response_generator(query):
 
     # Step 3: Start streaming
     for chunk in persona_agent.stream(
-        {"messages": [content]},
-        stream_mode="messages",
-        version="v2",
-    ):
-      
-        message_chunk = chunk[0]
+    {"messages": [content]},
+    stream_mode="messages",
+    version="v2",
+):
+        message_chunk = chunk["data"][0]
 
-        if hasattr(message_chunk, "content") and message_chunk.content:
-
-            yield message_chunk.content   # ✅ token streaming
+        if message_chunk.content:
+            yield message_chunk.content
             await asyncio.sleep(0)
 
