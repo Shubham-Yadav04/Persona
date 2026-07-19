@@ -14,18 +14,18 @@ from langchain.agents import create_agent
 
 load_dotenv()
 
-file_path = "./persona_agent/Shubhamydv.pdf"
-loader = PyPDFLoader(file_path)
-documents = loader.load()
+# file_path = "./persona_agent/Shubhamydv.pdf"
+# loader = PyPDFLoader(file_path)
+# documents = loader.load()
 
 # Split into chunks
-text_splitter = RecursiveCharacterTextSplitter(
-    chunk_size=1000,
-    chunk_overlap=200,
-    separators=["\n\n", "\n", " ", ""],
-)
+# text_splitter = RecursiveCharacterTextSplitter(
+#     chunk_size=1000,
+#     chunk_overlap=200,
+#     separators=["\n\n", "\n", " ", ""],
+# )
 
-texts = text_splitter.split_documents(documents)
+# texts = text_splitter.split_documents(documents)
 embeddings = GoogleGenerativeAIEmbeddings(model="models/gemini-embedding-001")
 
 api_key=os.getenv("CHROMA_CLOUD_API")
@@ -42,7 +42,7 @@ database=database,
     embedding_function=embeddings
 )
 
-vector_store.add_documents(documents=texts)
+# vector_store.add_documents(documents=texts)
 persona_agent = create_agent(
     model='google_genai:gemini-2.5-flash-lite',
     name='persona_agent',
